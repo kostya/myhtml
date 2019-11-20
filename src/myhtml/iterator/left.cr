@@ -7,7 +7,7 @@ struct Myhtml::Iterator::Left
   @current_node : Node? = nil
 
   def initialize(@start_node)
-    @undef_node = @start_node.tree.undefined_root!
+    @undef_node = @start_node.parser.document!
     rewind
   end
 

@@ -21,9 +21,9 @@ myhtml.head! # Myhtml::Node
 
 # iterator over all div nodes from root scope
 # equal with myhtml.root!.scope.nodes(:div)
-myhtml.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV) # Iterator::Collection(Myhtml::Node)
-myhtml.nodes(:div)                                    # Iterator::Collection(Myhtml::Node)
-myhtml.nodes("div")                                   # Iterator::Collection(Myhtml::Node)
+myhtml.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV) # Iterator::Collection(Myhtml::Node)
+myhtml.nodes(:div)                             # Iterator::Collection(Myhtml::Node)
+myhtml.nodes("div")                            # Iterator::Collection(Myhtml::Node)
 
 node = myhtml.nodes(:div).first # Myhtml::Node
 

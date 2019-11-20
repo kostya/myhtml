@@ -71,7 +71,7 @@ describe "iterators" do
   end
 
   it "left_iterator with another tree_options" do
-    parser = parser(tree_options: Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN | Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_WITHOUT_DOCTYPE_IN_TREE)
+    parser = parser()                     # (tree_options: Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN | Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_WITHOUT_DOCTYPE_IN_TREE)
     node = parser.nodes(:_text).to_a.last # text
     res = node.left_iterator.map(&INSPECT_NODE).join
     res.should eq "div|span|br|(text)|a|(Bla)|td|td|tr|tbody|table|div|body|head|html|"
@@ -130,17 +130,18 @@ describe "iterators" do
     res.should eq ""
   end
 
-  it "collection iterator with nodes filter (usefull for css subfiltering)" do
-    res = parser.nodes(:div).nodes(:div).map(&INSPECT_NODE).join
-    res.should eq "div|div|"
-  end
+  # questionable
+  # it "collection iterator with nodes filter (usefull for css subfiltering)" do
+  #   res = parser.nodes(:div).nodes(:div).map(&INSPECT_NODE).join
+  #   res.should eq "div|div|"
+  # end
 
   it "collection iterator inspect" do
     parser.nodes(:div).inspect.should contain "elements: [Myhtml::Node(:div), Myhtml::Node(:div)]>"
   end
 
   it "collection iterator inspect" do
-    parser(tree_options: Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN | Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_WITHOUT_DOCTYPE_IN_TREE)
+    parser # (tree_options: Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN | Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_WITHOUT_DOCTYPE_IN_TREE)
       .nodes(:_text).inspect.should contain "elements: [Myhtml::Node(:_text, \"Bla\"), Myhtml::Node(:_text, \"text\"), ...(1 more)]>"
   end
 

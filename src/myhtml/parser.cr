@@ -1,6 +1,6 @@
-struct Myhtml::Parser
+class Myhtml::Parser
   # :nodoc:
-  getter tree : Tree
+  @doc : Lib::DocT
 
   #
   # Parse html from string
@@ -13,15 +13,10 @@ struct Myhtml::Parser
   #   **tree_options** - additional myhtml options for parsing (see Myhtml::Lib::MyhtmlTreeParseFlags)
   #
 
-  def self.new(page : String,
-               encoding : Lib::MyEncodingList? = nil,
-               detect_encoding_from_meta : Bool = false,
-               detect_encoding : Bool = false,
-               tree_options : Lib::MyhtmlTreeParseFlags? = nil)
-    self.new(tree_options: tree_options,
-      encoding: encoding,
-      detect_encoding_from_meta: detect_encoding_from_meta,
-      detect_encoding: detect_encoding).parse(page)
+  getter encoding : String? = nil
+
+  def self.new(page : String)
+    self.new.parse(page)
   end
 
   #
@@ -33,29 +28,18 @@ struct Myhtml::Parser
   #   **tree_options** - additional myhtml options for parsing (see Myhtml::Lib::MyhtmlTreeParseFlags)
   #
 
-  def self.new(io : IO,
-               tree_options : Lib::MyhtmlTreeParseFlags? = nil,
-               encoding : Lib::MyEncodingList? = nil)
-    self.new(tree_options: tree_options, encoding: encoding).parse_stream(io)
+  def self.new(io : IO)
+    self.new.parse_stream(io)
   end
 
-  #
-  # Root nodes for parsed tree
-  #   **myhtml.body!** - body node
-  #   **myhtml.head!** - head node
-  #   **myhtml.root!** - html node
-  #   **myhtml.document!** - document node
-  #
-  delegate :body, :body!, :head, :head!, :root, :root!, :html, :html!, :document!, to: tree
-
-  #
-  # Top level node filter (select all nodes in tree with tag_sym)
-  #   returns Myhtml::Iterator::Collection
-  #   equal with myhtml.root!.scope.nodes(...)
-  #
-  #   myhtml.nodes(:div).each { |node| ... }
-  #
-  delegate :nodes, to: tree
+  # #
+  # # Top level node filter (select all nodes in tree with tag_sym)
+  # #   returns Myhtml::Iterator::Collection
+  # #   equal with myhtml.root!.scope.nodes(...)
+  # #
+  # #   myhtml.nodes(:div).each { |node| ... }
+  # #
+  # delegate :nodes, to: tree
 
   #
   # Css selectors, see Node#css
@@ -68,23 +52,52 @@ struct Myhtml::Parser
   delegate :to_html, to: document!
   delegate :to_pretty_html, to: document!
 
-  #
-  # Manually free object, dangerous (also called by GC finalize)
-  #
-  delegate :free, to: tree
+  def root
+    Node.from_raw(self, Lib.document_element(@doc))
+  end
 
-  #
-  # Current encoding
-  #
-  delegate :encoding, to: tree
+  def document
+    Node.new(self, @doc.as(Void*).as(Lib::DomElementT))
+  end
+
+  def html
+    root
+  end
+
+  def head
+    Node.from_raw(self, Lib.tree_get_node_head(@doc))
+  end
+
+  def body
+    Node.from_raw(self, Lib.tree_get_node_body(@doc))
+  end
+
+  {% for name in %w(head body html root document) %}
+    def {{ name.id }}!
+      if val = {{ name.id }}
+        val
+      else
+        raise EmptyNodeError.new("expected `{{name.id}}` to present on myhtml document")
+      end
+    end
+  {% end %}
 
   # :nodoc:
-  protected def initialize(tree_options : Lib::MyhtmlTreeParseFlags? = nil,
-                           encoding : Lib::MyEncodingList? = nil,
-                           @detect_encoding_from_meta : Bool = false,
-                           @detect_encoding : Bool = false)
-    @tree = Tree.new(encoding || Lib::MyEncodingList::MyENCODING_DEFAULT)
-    @tree.set_flags(tree_options) if tree_options
+  protected def initialize
+    @doc = Lib.document_create
+    raise LibError.new("Failed to create HTML Document") if @doc.null?
+    @finalized = false
+  end
+
+  def free
+    finalize
+  end
+
+  def finalize
+    unless @finalized
+      @finalized = true
+      Lib.document_destroy(@doc)
+    end
   end
 
   # :nodoc:
@@ -92,31 +105,11 @@ struct Myhtml::Parser
     pointer = string.to_unsafe
     bytesize = string.bytesize
 
-    if Lib.encoding_detect_and_cut_bom(pointer, bytesize, out encoding2, out pointer2, out bytesize2)
-      pointer = pointer2
-      bytesize = bytesize2
-      @tree.encoding = encoding2
-    else
-      detected = false
+    status = Lib.document_parse(@doc, pointer, bytesize)
 
-      if @detect_encoding_from_meta
-        if enc = Utils::DetectEncoding.from_meta?(pointer, bytesize)
-          detected = true
-          @tree.encoding = enc
-        end
-      end
-
-      if @detect_encoding && !detected
-        if enc = Utils::DetectEncoding.detect?(pointer, bytesize)
-          @tree.encoding = enc
-        end
-      end
-    end
-
-    res = Lib.parse(@tree.raw_tree, @tree.encoding, pointer, bytesize)
-    if res != Lib::MyStatus::MyCORE_STATUS_OK
+    if status != Lib::StatusT::LXB_STATUS_OK
       free
-      raise LibError.new("parse error #{res}")
+      raise LibError.new("parse error #{status}")
     end
 
     self
@@ -127,28 +120,119 @@ struct Myhtml::Parser
 
   # :nodoc:
   protected def parse_stream(io : IO)
-    buffers = Array(Bytes).new
-    Lib.encoding_set(@tree.raw_tree, @tree.encoding)
+    parse_stream_start
+
+    buffer = Bytes.new(BUFFER_SIZE)
 
     loop do
-      buffer = Bytes.new(BUFFER_SIZE)
       read_size = io.read(buffer)
       break if read_size == 0
-
-      buffers << buffer
-      res = Lib.parse_chunk(@tree.raw_tree, buffer, read_size)
-      if res != Lib::MyStatus::MyCORE_STATUS_OK
-        free
-        raise LibError.new("parse_chunk error #{res}")
-      end
+      parse_stream_load_slice(Slice.new(buffer.to_unsafe, read_size))
     end
 
-    res = Lib.parse_chunk_end(@tree.raw_tree)
-    if res != Lib::MyStatus::MyCORE_STATUS_OK
-      free
-      raise LibError.new("parse_chunk_end error #{res}")
-    end
+    parse_stream_finish
 
     self
+  end
+
+  private def parse_stream_start
+    status = Lib.document_parse_chunk_begin(@doc)
+    if status != Lib::StatusT::LXB_STATUS_OK
+      free
+      raise LibError.new("Failed to parse chunk begin: #{status}")
+    end
+  end
+
+  private def parse_stream_load_slice(slice)
+    res = Lib.document_parse_chunk(@doc, slice.to_unsafe, slice.size)
+    if res != Lib::StatusT::LXB_STATUS_OK
+      free
+      raise LibError.new("Failed to parse chunk: #{res}")
+    end
+  end
+
+  private def parse_stream_finish
+    res = Lib.document_parse_chunk_end(@doc)
+    if res != Lib::StatusT::LXB_STATUS_OK
+      free
+      raise LibError.new("Failed to parse chunk end: #{res}")
+    end
+  end
+
+  protected def parse_stream_with_ec(ec : EncodingConverter, io : IO)
+    parse_stream_start
+    ec.convert(io) { |slice| parse_stream_load_slice(slice) }
+    parse_stream_finish
+
+    self
+  end
+
+  #
+  # Create a new node
+  #
+  # **Note**: this does not add the node to any document or tree. It only
+  # creates the object that can then be appended or inserted. See
+  # `Node#append_child`, `Node#insert_after`, and `Node#insert_before`
+  #
+  # ```crystal
+  # doc = Myhtml::Parser.new ""
+  # div = doc.create_node(:div)
+  # a = doc.create_node(:a)
+  #
+  # div.to_html # <div></div>
+  # a.to_html   # <a></a>
+  # ```
+  #
+  def create_node(tag_id : Myhtml::Lib::TagIdT)
+    create_node(Myhtml::Utils::TagConverter.id_to_sym(tag_id))
+  end
+
+  def create_node(tag_sym : Symbol)
+    create_node(tag_sym.to_s)
+  end
+
+  def create_node(tag_name : String)
+    element = Lib.create_element(@doc, tag_name.to_unsafe, tag_name.bytesize, nil)
+    Node.from_raw(self, element) || raise EmptyNodeError.new("unable to create node '#{tag_name}'")
+  end
+
+  def create_text_node(text : String)
+    Node.from_raw(self, Lib.create_text_element(@doc, text.to_unsafe, text.bytesize)) || raise EmptyNodeError.new("unable to create text node")
+  end
+
+  #
+  # Top level node filter (select all nodes in tree with tag_id)
+  #   returns Myhtml::Iterator::Collection
+  #   equal with myhtml.root!.scope.nodes(...)
+  #
+  #   myhtml.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).each { |node| ... }
+  #
+  def nodes(tag_id : Myhtml::Lib::TagIdT)
+    # TODO: optimize?
+    root!.scope.nodes(tag_id)
+  end
+
+  #
+  # Top level node filter (select all nodes in tree with tag_sym)
+  #   returns Myhtml::Iterator::Collection
+  #   equal with myhtml.root!.scope.nodes(...)
+  #
+  #   myhtml.nodes(:div).each { |node| ... }
+  #
+  def nodes(tag_sym : Symbol)
+    # TODO: optimize?
+    root!.scope.nodes(tag_sym)
+  end
+
+  #
+  # Top level node filter (select all nodes in tree with tag_sym)
+  #   returns Myhtml::Iterator::Collection
+  #   equal with myhtml.root!.scope.nodes(...)
+  #
+  #   myhtml.nodes("div").each { |node| ... }
+  #
+  def nodes(tag_str : String)
+    # TODO: optimize?
+    root!.scope.nodes(tag_str)
   end
 end

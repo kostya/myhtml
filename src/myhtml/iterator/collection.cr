@@ -3,31 +3,30 @@ class Myhtml::Iterator::Collection
   include Iterator::Filter
 
   @id : LibC::SizeT
-  @tree : Tree
+  @parser : Parser
   @length : LibC::SizeT
-  @list : Lib::MyhtmlTreeNodeT**
-  @raw_collection : Lib::MyhtmlCollectionT*
+  @col : Lib::CollectionT
 
-  def initialize(@tree, @raw_collection)
+  def initialize(@parser, @col)
     @id = LibC::SizeT.new(0)
-    if @raw_collection.null?
-      @length = LibC::SizeT.new(0)
-      @list = Pointer(Lib::MyhtmlTreeNodeT*).new(0)
-    else
-      @length = @raw_collection.value.length
-      @list = @raw_collection.value.list
-    end
+    @length = Lib.collection_length(@col)
     @finalized = false
   end
 
   def next
     if @id < @length
-      node = @list[@id]
+      node = node_by_id(@id)
       @id += 1
-      Node.new(@tree, node)
+      node
     else
       stop
     end
+  end
+
+  @[AlwaysInline]
+  private def node_by_id(i)
+    node = Lib.collection_element(@col, i)
+    Node.new(@parser, node) # node not null here
   end
 
   def size
@@ -41,7 +40,7 @@ class Myhtml::Iterator::Collection
   def free
     unless @finalized
       @finalized = true
-      Lib.collection_destroy(@raw_collection)
+      Lib.collection_destroy(@col, true)
     end
   end
 
@@ -58,7 +57,7 @@ class Myhtml::Iterator::Collection
 
     count = {2, @length}.min
     count.times do |i|
-      Node.new(@tree, @list[i]).inspect(io)
+      node_by_id(i).inspect(io)
       io << ", " unless i == count - 1
     end
 

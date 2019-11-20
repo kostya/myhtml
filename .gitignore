@@ -10,5 +10,6 @@
 
 *.html
 *.dwarf
+*.a
 bin_*
 todo

@@ -1,19 +1,20 @@
 struct Myhtml::Node
   # :nodoc:
   def self_closed?
-    Lib.node_is_close_self(@raw_node)
+    # Lib.node_is_close_self(@raw_node)
+    false
   end
 
   # :nodoc:
   def void_element?
-    Lib.node_is_void_element(@raw_node)
+    Lib.node_is_void(@element)
   end
 
   def textable?
     case tag_id
-    when Lib::MyhtmlTags::MyHTML_TAG__TEXT,
-         Lib::MyhtmlTags::MyHTML_TAG__COMMENT,
-         Lib::MyhtmlTags::MyHTML_TAG_STYLE
+    when Lib::TagIdT::LXB_TAG__TEXT,
+         Lib::TagIdT::LXB_TAG__EM_COMMENT,
+         Lib::TagIdT::LXB_TAG_STYLE
       true
     else
       false
@@ -22,10 +23,10 @@ struct Myhtml::Node
 
   def visible?
     case tag_id
-    when Lib::MyhtmlTags::MyHTML_TAG_STYLE,
-         Lib::MyhtmlTags::MyHTML_TAG__COMMENT,
-         Lib::MyhtmlTags::MyHTML_TAG_SCRIPT,
-         Lib::MyhtmlTags::MyHTML_TAG_HEAD
+    when Lib::TagIdT::LXB_TAG_STYLE,
+         Lib::TagIdT::LXB_TAG__EM_COMMENT,
+         Lib::TagIdT::LXB_TAG_SCRIPT,
+         Lib::TagIdT::LXB_TAG_HEAD
       false
     else
       true
@@ -34,33 +35,37 @@ struct Myhtml::Node
 
   def object?
     case tag_id
-    when Lib::MyhtmlTags::MyHTML_TAG_APPLET,
-         Lib::MyhtmlTags::MyHTML_TAG_IFRAME,
-         Lib::MyhtmlTags::MyHTML_TAG_FRAME,
-         Lib::MyhtmlTags::MyHTML_TAG_FRAMESET,
-         Lib::MyhtmlTags::MyHTML_TAG_EMBED,
-         Lib::MyhtmlTags::MyHTML_TAG_OBJECT
+    when Lib::TagIdT::LXB_TAG_APPLET,
+         Lib::TagIdT::LXB_TAG_IFRAME,
+         Lib::TagIdT::LXB_TAG_FRAME,
+         Lib::TagIdT::LXB_TAG_FRAMESET,
+         Lib::TagIdT::LXB_TAG_EMBED,
+         Lib::TagIdT::LXB_TAG_OBJECT
       true
     else
       false
     end
   end
 
-  {% for name in Lib::MyhtmlTags.constants %}
-    def is_tag_{{ name.gsub(/MyHTML_TAG_/, "").downcase.id }}?
-      tag_id == Lib::MyhtmlTags::{{ name.id }}
+  {% for name in Lib::TagIdT.constants %}
+    def is_tag_{{ name.gsub(/LXB_TAG_/, "").downcase.id }}?
+      tag_id == Lib::TagIdT::{{ name.id }}
     end
   {% end %}
 
   def is_text?
-    tag_id == Lib::MyhtmlTags::MyHTML_TAG__TEXT
+    tag_id == Lib::TagIdT::LXB_TAG__TEXT
+  end
+
+  def is_comment?
+    tag_id == Lib::TagIdT::LXB_TAG__EM_COMMENT
   end
 
   def is_tag_noindex?
-    tag_id >= Lib::MyhtmlTags::MyHTML_TAG_LAST_ENTRY && tag_name_slice == "noindex".to_slice
+    tag_id >= Lib::TagIdT::LXB_TAG__LAST_ENTRY && tag_name_slice == "noindex".to_slice
   end
 
   def is_tag_nofollow?
-    tag_id >= Lib::MyhtmlTags::MyHTML_TAG_LAST_ENTRY && tag_name_slice == "nofollow".to_slice
+    tag_id >= Lib::TagIdT::LXB_TAG__LAST_ENTRY && tag_name_slice == "nofollow".to_slice
   end
 end

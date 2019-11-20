@@ -1,27 +1,27 @@
 struct Myhtml::Node
   # :nodoc:
-  getter tree : Tree
+  getter parser : Parser
 
   # :nodoc:
-  getter raw_node : Lib::MyhtmlTreeNodeT*
+  getter element : Lib::DomElementT
 
   # :nodoc:
   @attributes : Hash(String, String)?
 
-  def self.from_raw(tree, raw_node)
-    Node.new(tree, raw_node) unless raw_node.null?
+  def self.from_raw(parser, element)
+    Node.new(parser, element) unless element.null?
   end
 
-  def initialize(@tree, @raw_node)
+  def initialize(@parser, @element)
   end
 
   #
   # Tag ID
-  #   node.tag_id => Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV
+  #   node.tag_id => Myhtml::Lib::TagIdT::LXB_TAG_DIV
   #
   @[AlwaysInline]
-  def tag_id : Lib::MyhtmlTags
-    Lib.node_tag_id(@raw_node)
+  def tag_id : Myhtml::Lib::TagIdT
+    Lib.element_get_tag_id(@element)
   end
 
   #
@@ -44,14 +44,15 @@ struct Myhtml::Node
   # :nodoc:
   @[AlwaysInline]
   def tag_name_slice
-    buffer = Lib.tag_name_by_id(@tree.@raw_tree, self.tag_id, out length)
+    # TODO: optimize?
+    buffer = Lib.element_qualified_name(@element, out length)
     Slice.new(buffer, length)
   end
 
   #
   # Tag Text
   #   Direct text content of node
-  #   present only on MyHTML_TAG__TEXT, MyHTML_TAG_STYLE, MyHTML_TAG__COMMENT nodes (node.textable?)
+  #   present only on LXB_TAG__TEXT, LXB_TAG_STYLE, LXB_TAG__EM_COMMENT nodes (node.textable?)
   #   for other nodes, you should call `inner_text` method
   #
   def tag_text
@@ -61,31 +62,34 @@ struct Myhtml::Node
   # :nodoc:
   @[AlwaysInline]
   def tag_text_slice
-    buffer = Lib.node_text(@raw_node, out length)
+    buffer = Lib.element_text_content(@element, out length)
     Slice.new(buffer, length)
   end
 
   # :nodoc:
   def tag_text_set(text : String, encoding = nil)
     raise ArgumentError.new("#{self.inspect} not allowed to set text") unless textable?
-    Lib.node_text_set_with_charef(@raw_node, text, text.bytesize, encoding || @tree.encoding)
+    # TODO: encoding?
+
+    status = Lib.element_text_content_set(@element, text, text.bytesize)
+    text
   end
 
-  #
-  # Node Storage
-  #   set Void* data related to this node
-  #
-  def data=(d : Void*)
-    Lib.node_set_data(@raw_node, d)
-  end
+  # #
+  # # Node Storage
+  # #   set Void* data related to this node
+  # #
+  # def data=(d : Void*)
+  #   # Lib.node_set_data(@raw_node, d)
+  # end
 
-  #
-  # Node Storage
-  #   get stored Void* data
-  #
-  def data
-    Lib.node_get_data(@raw_node)
-  end
+  # #
+  # # Node Storage
+  # #   get stored Void* data
+  # #
+  # def data
+  #   # Lib.node_get_data(@raw_node)
+  # end
 
   #
   # Node Inner Text
@@ -127,7 +131,7 @@ struct Myhtml::Node
 
   # :nodoc:
   protected def each_inner_text_for_scope(scope)
-    scope.nodes(Lib::MyhtmlTags::MyHTML_TAG__TEXT).each { |node| yield node.tag_text_slice }
+    scope.nodes(Lib::TagIdT::LXB_TAG__TEXT).each { |node| yield node.tag_text_slice }
   end
 
   #

@@ -26,15 +26,10 @@ formatting = (ARGV[1]? != "0")
 remove_whitespaces = (ARGV[2]? != "0")
 remove_comments = (ARGV[3]? != "0")
 
-tree_options = Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_CLEAN
-if remove_whitespaces
-  tree_options |= Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN
-end
-
-myhtml = Myhtml::Parser.new(str, tree_options: tree_options)
+myhtml = Myhtml::Parser.new(str)
 
 if remove_comments
-  myhtml.nodes(:_comment).each(&.remove!)
+  myhtml.nodes(:_em_comment).each(&.remove!)
 end
 
 if formatting

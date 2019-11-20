@@ -6,9 +6,9 @@ module Myhtml::Iterator
     # Iterator node filter
     #   returns Myhtml::Iterator::Collection
     #
-    #   iterator.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV).each { |node| ... }
+    #   iterator.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).each { |node| ... }
     #
-    def nodes(tag_id : Lib::MyhtmlTags)
+    def nodes(tag_id : Lib::TagIdT)
       self.select { |node| node.tag_id == tag_id }
     end
 

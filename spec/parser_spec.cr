@@ -6,10 +6,10 @@ describe Myhtml::Node do
       <div>blah</div>
       </body></html>")
 
-    parser.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV).size.should eq 2
+    parser.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).size.should eq 2
     parser.nodes(:div).size.should eq 2
     parser.nodes("div").size.should eq 2
-    nodes = parser.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV).to_a
+    nodes = parser.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).to_a
     nodes.size.should eq 2
 
     node1, node2 = nodes
@@ -26,7 +26,7 @@ describe Myhtml::Node do
       </body></html>")
 
     nodes = [] of Myhtml::Node
-    parser.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV).each { |n| nodes << n }
+    parser.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).each { |n| nodes << n }
     nodes.size.should eq 2
 
     node1, node2 = nodes
@@ -51,7 +51,7 @@ describe Myhtml::Node do
     HTML
 
     parser = Myhtml::Parser.new(str)
-    parser.nodes(Myhtml::Lib::MyhtmlTags::MyHTML_TAG_A).size.should eq 1
+    parser.nodes(Myhtml::Lib::TagIdT::LXB_TAG_A).size.should eq 1
     parser.nodes(:a).size.should eq 1
     parser.nodes("a").size.should eq 1
   end
@@ -63,6 +63,10 @@ describe Myhtml::Node do
     slice[2] = 0xbf.to_u8
     str = String.new(slice)
     str += "<html><head><title>1</title></head></html>"
+
+    if bom = Myhtml::Utils::DetectEncoding.detect_bom(str.to_slice)
+      str = String.new(bom.shifted(str.to_slice))
+    end
 
     parser = Myhtml::Parser.new(str)
 
@@ -120,5 +124,45 @@ describe Myhtml::Node do
     HTML
     parser = Myhtml::Parser.new(origin)
     parser.to_html.should eq "<!DOCTYPE html><html lang=\"en\"><head>\n     <title></title>\n    </head>\n    <body> \n  </body></html>"
+  end
+
+  describe "#create_node" do
+    it "returns a new Myhtml::Node" do
+      tree = Myhtml::Parser.new ""
+
+      node = tree.create_node(:a)
+
+      node.should be_a(Myhtml::Node)
+      node.tag_id.should eq(Myhtml::Lib::TagIdT::LXB_TAG_A)
+    end
+
+    it "create node with attributes and text" do
+      tree = Myhtml::Parser.new ""
+      node = tree.create_node(:a)
+      node.attribute_add("id", "bla")
+      node.attribute_add("class", "red")
+      node.to_html.should eq "<a id=\"bla\" class=\"red\"></a>"
+
+      node.inner_text = "some text"
+
+      node.to_html.should eq "<a id=\"bla\" class=\"red\">some text</a>"
+    end
+  end
+
+  it "nodes iterator works with doctype" do
+    parser = Myhtml::Parser.new("<!doctype html><html><body><div class=AAA style='color:red'>Haha</div>
+      <div>blah</div>
+      </body></html>")
+
+    parser.nodes(Myhtml::Lib::TagIdT::LXB_TAG_DIV).size.should eq 2
+    parser.nodes(:div).size.should eq 2
+    parser.nodes("div").size.should eq 2
+  end
+
+  describe "root element" do
+    it do
+      m = Myhtml::Parser.new(%q{<!DOCTYPE html><html></html>})
+      m.root!.tag_sym.should eq :html
+    end
   end
 end

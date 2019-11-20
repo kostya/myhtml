@@ -7,7 +7,7 @@ describe Myhtml::Node do
     node = parser.root!.child!.next!.child!
     node.tag_name.should eq "div"
     node.attributes.should eq({"class" => "AAA", "style" => "color:red"})
-    node.tag_id.should eq Myhtml::Lib::MyhtmlTags::MyHTML_TAG_DIV
+    node.tag_id.should eq Myhtml::Lib::TagIdT::LXB_TAG_DIV
     node.tag_sym.should eq :div
     node.child!.tag_text.should eq "Haha"
     node.attribute_by("class").should eq "AAA"
@@ -210,23 +210,23 @@ describe Myhtml::Node do
     end
   end
 
-  it "get set data" do
-    parser = Myhtml::Parser.new("<body><object>bla</object></body>")
-    node = parser.body!
+  # it "get set data" do
+  #   parser = Myhtml::Parser.new("<body><object>bla</object></body>")
+  #   node = parser.body!
 
-    str = "bla"
+  #   str = "bla"
 
-    node.data = str.as(Void*)
+  #   node.data = str.as(Void*)
 
-    body2 = parser.root!.child!.next!
-    body2.data.as(String).should eq str
+  #   body2 = parser.root!.child!.next!
+  #   body2.data.as(String).should eq str
 
-    parser.root!.data.null?.should eq true
-  end
+  #   parser.root!.data.null?.should eq true
+  # end
 
   describe "#append_child" do
     it "adds a node at the end" do
-      tree = Myhtml::Tree.new
+      tree = Myhtml::Parser.new ""
       parent = tree.create_node(:div)
       child = tree.create_node(:a)
       grandchild = tree.create_node(:span)
@@ -244,8 +244,8 @@ describe Myhtml::Node do
   describe "#insert_before" do
     it "adds a node just prior to this node" do
       document = Myhtml::Parser.new("<html><body><main></main></body></html>")
-      main = document.css("main").first
-      header = document.tree.create_node(:header)
+      main = document.nodes("main").first
+      header = document.create_node(:header)
 
       main.insert_before(header)
 
@@ -258,8 +258,8 @@ describe Myhtml::Node do
     it "adds a node just following this node" do
       html_string = "<html><body><header></header></body></html>"
       document = Myhtml::Parser.new(html_string)
-      header = document.css("header").first
-      main = document.tree.create_node(:main)
+      header = document.nodes("header").first
+      main = document.create_node(:main)
 
       header.insert_after(main)
 
@@ -271,7 +271,21 @@ describe Myhtml::Node do
   describe "#inner_text=" do
     it "add inner_text" do
       document = Myhtml::Parser.new("<html><body><div></div></body></html>")
-      div = document.css("div").first
+      div = document.nodes("div").first
+      div.inner_text = "bla"
+      document.to_html.should eq "<html><head></head><body><div>bla</div></body></html>"
+    end
+
+    it "add inner_text with redefine" do
+      document = Myhtml::Parser.new("<html><body><div>hoho</div></body></html>")
+      div = document.nodes("div").first
+      div.inner_text = "bla"
+      document.to_html.should eq "<html><head></head><body><div>bla</div></body></html>"
+    end
+
+    it "add inner_text with redefine inner nodes even" do
+      document = Myhtml::Parser.new("<html><body><div><span>hoho</span></div></body></html>")
+      div = document.nodes("div").first
       div.inner_text = "bla"
       document.to_html.should eq "<html><head></head><body><div>bla</div></body></html>"
     end
@@ -308,11 +322,31 @@ describe Myhtml::Node do
       io.rewind
       io.gets_to_end.should eq %Q[<div class="AAA" style="color:red">]
     end
+
+    it "deep not serialize next node" do
+      parser = Myhtml::Parser.new("<html><body><div class=AAA style='color:red'>Haha <span>11</span></div><div>Jopa</div></body></html>")
+      node = parser.nodes(:div).first
+      node.to_html.should eq %Q[<div class="AAA" style="color:red">Haha <span>11</span></div>]
+    end
   end
 
   context "to_pretty_html" do
     it "work" do
       parser = Myhtml::Parser.new("<html><body><div class=AAA style='color:red'>Haha <span>11</span></div></body></html>")
+      node = parser.nodes(:div).first
+      t = <<-TEXT
+      <div class="AAA" style="color:red">
+        Haha
+        <span>
+          11
+        </span>
+      </div>
+      TEXT
+      node.to_pretty_html.should eq t
+    end
+
+    it "work, not serialize next node" do
+      parser = Myhtml::Parser.new("<html><body><div class=AAA style='color:red'>Haha <span>11</span></div><div>Jopa</div></body></html>")
       node = parser.nodes(:div).first
       t = <<-TEXT
       <div class="AAA" style="color:red">
@@ -377,7 +411,7 @@ describe Myhtml::Node do
     end
 
     it "not damaging html" do
-      myhtml1 = Myhtml::Parser.new(PAGE25, encoding: Myhtml::Lib::MyEncodingList::MyENCODING_WINDOWS_1251)
+      myhtml1 = Myhtml::Parser.new(PAGE25) # , encoding: Myhtml::Lib::MyEncodingList::MyENCODING_WINDOWS_1251)
       s1 = myhtml1.to_pretty_html
 
       myhtml2 = Myhtml::Parser.new(s1)

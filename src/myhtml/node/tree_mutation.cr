@@ -14,7 +14,7 @@ struct Myhtml::Node
   # ```
   #
   def append_child(child : Node)
-    Lib.tree_node_add_child(raw_node, child.raw_node)
+    Lib.insert_child(@element, child.@element)
   end
 
   #
@@ -30,7 +30,7 @@ struct Myhtml::Node
   # ```
   #
   def insert_before(node : Node)
-    Lib.tree_node_insert_before(raw_node, node.raw_node)
+    Lib.insert_before(@element, node.@element)
   end
 
   #
@@ -46,14 +46,14 @@ struct Myhtml::Node
   # ```
   #
   def insert_after(node : Node)
-    Lib.tree_node_insert_after(raw_node, node.raw_node)
+    Lib.insert_after(@element, node.@element)
   end
 
   #
   # Remove node from tree
   #
   def remove!
-    Lib.node_remove(@raw_node)
+    Lib.node_remove(@element)
   end
 
   #
@@ -68,9 +68,8 @@ struct Myhtml::Node
   # ```
   #
   def inner_text=(text : String)
-    _text = @tree.create_node(Lib::MyhtmlTags::MyHTML_TAG__TEXT)
-    _text.tag_text_set(text)
-    self.append_child(_text)
+    children.each &.remove! # remove all children nodes (this is allow to redefine fully inner_text)
+    self.append_child(@parser.create_text_node(text))
     text
   end
 end

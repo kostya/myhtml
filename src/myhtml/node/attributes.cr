@@ -3,7 +3,10 @@ struct Myhtml::Node
   # Add attribute to node
   #
   def attribute_add(key : String, value : String, encoding = nil)
-    Lib.attribute_add(@raw_node, key, key.bytesize, value, value.bytesize, encoding || @tree.encoding)
+    if Lib.element_set_attribute(@element, key.to_unsafe, key.bytesize, value.to_unsafe, value.bytesize).null?
+      raise LibError.new("unable to add attribute to #{self.inspect}")
+    end
+
     if attrs = @attributes
       attrs[key] = value
     end
@@ -14,7 +17,7 @@ struct Myhtml::Node
   # Remove node attribute by key
   #
   def attribute_remove(key : String)
-    Lib.attribute_remove_by_key(@raw_node, key, key.bytesize)
+    Lib.attribute_remove(@element, key, key.bytesize)
     if attrs = @attributes
       attrs.delete(key)
     end
@@ -74,22 +77,22 @@ struct Myhtml::Node
   end
 
   protected def each_raw_attribute(&block)
-    attr = Lib.node_attribute_first(@raw_node)
+    attr = Lib.element_first_attribute(@element)
     while !attr.null?
       yield attr
-      attr = Lib.attribute_next(attr)
+      attr = Lib.element_next_attribute(attr)
     end
     nil
   end
 
   @[AlwaysInline]
   private def any_attribute?
-    !Lib.node_attribute_first(@raw_node).null?
+    !Lib.element_first_attribute(@element).null?
   end
 
   @[AlwaysInline]
   private def attribute_name(attr)
-    name = Lib.attribute_key(attr, out name_length)
+    name = Lib.attribute_qualified_name(attr, out name_length)
     Slice(UInt8).new(name, name_length)
   end
 
