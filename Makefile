@@ -3,7 +3,7 @@ CRYSTALFLAGS ?=
 
 .PHONY: all package spec
 all: bin_usage bin_print_tree bin_links bin_texts bin_encoding bin_print_html bin_css_selectors1 bin_css_selectors2
-package: src/ext/lexbor-c/liblexbor_static.a
+package: src/ext/lexbor-c/build/liblexbor_static.a
 
 bin_usage: src/*.cr src/**/*.cr examples/usage.cr package
 	$(CRYSTAL) build examples/usage.cr $(CRYSTALFLAGS) -o $@
@@ -29,7 +29,7 @@ bin_encoding: src/*.cr src/**/*.cr examples/encoding.cr package
 bin_print_html: src/*.cr src/**/*.cr examples/print_html.cr package
 		$(CRYSTAL) build examples/print_html.cr $(CRYSTALFLAGS) -o $@
 
-src/ext/lexbor-c/liblexbor_static.a:
+src/ext/lexbor-c/build/liblexbor_static.a:
 	cd src/ext && make package
 
 spec:
@@ -37,5 +37,5 @@ spec:
 
 .PHONY: clean
 clean:
-	rm -f bin_* src/ext/lexbor-c/liblexbor_static.a
+	rm -f bin_* src/ext/lexbor-c/build/liblexbor_static.a
 	rm -rf ./src/ext/lexbor-c

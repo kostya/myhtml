@@ -2,34 +2,24 @@ class Myhtml::Parser
   # :nodoc:
   @doc : Lib::DocT
 
-  #
-  # Parse html from string
-  # example: myhtml = Myhtml::Parser.new("<html>...</html>", encoding: Myhtml::Lib::MyEncodingList::MyENCODING_WINDOWS_1251)
-  #
-  # Options:
-  #   **encoding** - set encoding of html (see list of encodings in Myhtml::Lib::MyEncodingList), by default it parsed as UTF-8
-  #   **detect_encoding_from_meta** - try to find encoding from meta tag in the html (<meta charset=...>)
-  #   **detect_encoding** - detect encoding by slow trigrams algorithm
-  #   **tree_options** - additional myhtml options for parsing (see Myhtml::Lib::MyhtmlTreeParseFlags)
-  #
-
-  getter encoding : String? = nil
-
   def self.new(page : String)
     self.new.parse(page)
   end
 
-  #
-  # Parse html from IO
-  # example: myhtml = Myhtml::Parser.new(io, encoding: Myhtml::Lib::MyEncodingList::MyENCODING_WINDOWS_1251)
-  #
-  # Options:
-  #   **encoding** - set encoding of html (see list of encodings in Myhtml::Lib::MyEncodingList), by default it parsed as UTF-8
-  #   **tree_options** - additional myhtml options for parsing (see Myhtml::Lib::MyhtmlTreeParseFlags)
-  #
+  def self.new(slice : Slice)
+    self.new.parse(slice)
+  end
 
   def self.new(io : IO)
     self.new.parse_stream(io)
+  end
+
+  def self.new(ec : EncodingConverter, page : String)
+    self.new.parse_stream_with_ec(ec, IO::Memory.new(page))
+  end
+
+  def self.new(ec : EncodingConverter, io : IO)
+    self.new.parse_stream_with_ec(ec, io)
   end
 
   # #
@@ -101,9 +91,14 @@ class Myhtml::Parser
   end
 
   # :nodoc:
-  protected def parse(string)
-    pointer = string.to_unsafe
-    bytesize = string.bytesize
+  protected def parse(string : String)
+    parse(string.to_slice)
+  end
+
+  # :nodoc:
+  protected def parse(slice : Slice)
+    pointer = slice.to_unsafe
+    bytesize = slice.bytesize
 
     status = Lib.document_parse(@doc, pointer, bytesize)
 

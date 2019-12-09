@@ -73,7 +73,7 @@ module Myhtml::Utils::DetectEncoding
   ADDITIONAL_ENCODING_ALIASES_LIST = begin
     h = {} of String => LibEncoding::EncodingT
 
-    {% for name in %w{windows win cp windows-cp} %}
+    {% for name in %w{windows win cp windows-cp windos window} %}
       {% for suffix in ["_", "-", " ", "=", ""] %}
         {% for i in [1250, 1251, 1252, 1254, 1255, 1256, 1257, 1258] %}
           h["{{name.id}}{{suffix.id}}{{i}}"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_WINDOWS_{{ i }}
@@ -83,6 +83,8 @@ module Myhtml::Utils::DetectEncoding
 
     h["unicode"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_UTF_8
     h["utf"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_UTF_8
+    h["uft-8"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_UTF_8
+    h["uft8"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_UTF_8
     h["ansi"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_WINDOWS_1252
     h["koi8u"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_KOI8_U
     h["koi8r"] = Myhtml::LibEncoding::EncodingT::LXB_ENCODING_KOI8_R
@@ -117,14 +119,17 @@ module Myhtml::Utils::DetectEncoding
     return res if res
 
     # TODO: optimize
+    old_bytesize = name.bytesize
     name = name.downcase
     i1 = name.index(/[0-9a-z-_=]/) || 0
     i2 = name.index(/[^0-9a-z-_=]/, i1 || 0) || name.bytesize
     s2 = name[i1...i2]
     name = s2
 
-    res = assoc_encoding(name)
-    return res if res
+    if name.bytesize != old_bytesize
+      res = assoc_encoding(name)
+      return res if res
+    end
 
     ADDITIONAL_ENCODING_ALIASES_LIST[name]?
   end
@@ -151,22 +156,25 @@ module Myhtml::Utils::DetectEncoding
     end
 
     if from
-      enc_type = :from
       if from.is_a?(String)
         if enc = Myhtml::Utils::DetectEncoding.assoc_encoding_with_additionals(from)
+          enc_type = :from
         else
           unfinded_encodings << from
         end
       else
+        enc_type = :from
         enc = from
       end
     end
 
     unless enc
       if content_type && (_enc = Myhtml::Utils::DetectEncoding.find_in_header_value(content_type.to_slice))
-        enc = Myhtml::Utils::DetectEncoding.assoc_encoding_with_additionals(_enc)
-        enc_type = :header
-        unfinded_encodings << _enc unless enc
+        if enc = Myhtml::Utils::DetectEncoding.assoc_encoding_with_additionals(_enc)
+          enc_type = :header
+        else
+          unfinded_encodings << _enc
+        end
       end
     end
 
@@ -183,13 +191,14 @@ module Myhtml::Utils::DetectEncoding
 
     unless enc
       if default
-        enc_type = :default
         if default.is_a?(String)
           if enc = Myhtml::Utils::DetectEncoding.assoc_encoding_with_additionals(default)
+            enc_type = :default
           else
             unfinded_encodings << default
           end
         else
+          enc_type = :default
           enc = default
         end
       end

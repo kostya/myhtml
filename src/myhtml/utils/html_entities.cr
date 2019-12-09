@@ -1,6 +1,7 @@
 module Myhtml::Utils::HtmlEntities
   def self.decode(str : String)
+    return str if str.empty?
     # TODO: optimize hard, this is really slow
-    Parser.new("<div>#{str}</div>").nodes(:div).first.inner_text
+    Parser.new("<body>#{str}</body>").body!.child!.tag_text
   end
 end

@@ -26,7 +26,7 @@ class Myhtml::Iterator::Collection
   @[AlwaysInline]
   private def node_by_id(i)
     node = Lib.collection_element(@col, i)
-    Node.new(@parser, node) # node not null here
+    Node.new(@parser, node) # node not null here, because i always in bounds
   end
 
   def size
