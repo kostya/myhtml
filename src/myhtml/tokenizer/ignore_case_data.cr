@@ -1,4 +1,4 @@
-record Myhtml::SAX::IgnoreCaseData, name : Bytes do
+record Myhtml::Tokenizer::IgnoreCaseData, name : Bytes do
   def self.new(s : String)
     self.new(s.to_slice)
   end

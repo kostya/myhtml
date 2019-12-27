@@ -70,34 +70,91 @@ module Myhtml
     fun simple_walk = lxb_dom_node_simple_walk(from : DomElementT, cb : Void*, ctx : Void*)
     # fun elements_by_tag_name = lxb_dom_elements_by_tag_name(root : DomElementT, col : CollectionT, qualified_name : UInt8*, len : LibC::SizeT) : StatusT
 
-    # FOR SAX Parsing
-    type MyhtmlTokenNodeT = Void*
-    type MyhtmlCallbackTokenF = MyhtmlTreeT*, MyhtmlTokenNodeT*, Void* -> Void*
-    type MyhtmlIncomingBufferT = Void*
+    # Tokenizer
+    type TagHeapT = Void*
+    type HtmlTokenizerT = Void*
+    type InModeT = Void*
+    type MRawT = Void*
 
-    struct MyhtmlPositionT
-      start : LibC::SizeT
+    struct Str
+      data : UInt8*
       length : LibC::SizeT
     end
 
-    fun callback_before_token_done_set = myhtml_callback_before_token_done_set(tree : MyhtmlTreeT*, func : MyhtmlCallbackTokenF, ctx : Void*)
-    fun callback_after_token_done_set = myhtml_callback_after_token_done_set(tree : MyhtmlTreeT*, func : MyhtmlCallbackTokenF, ctx : Void*)
-    fun tree_incoming_buffer_first = myhtml_tree_incoming_buffer_first(tree : MyhtmlTreeT*) : MyhtmlIncomingBufferT*
+    type StrT = Str*
 
-    fun token_node_raw_position = myhtml_token_node_raw_position(token : MyhtmlTokenNodeT*) : MyhtmlPositionT
-    fun token_node_element_position = myhtml_token_node_element_position(token : MyhtmlTokenNodeT*) : MyhtmlPositionT
-    fun token_node_attribute_first = myhtml_token_node_attribute_first(token : MyhtmlTokenNodeT*) : MyhtmlTreeAttrT*
-    fun token_node_tag_id = myhtml_token_node_tag_id(token : MyhtmlTokenNodeT*) : MyhtmlTagIdT
-    fun token_node_text = myhtml_token_node_text(node : MyhtmlTokenNodeT*, length : LibC::SizeT*) : UInt8*
-    fun token_node_is_close_self = myhtml_token_node_is_close_self(token : MyhtmlTokenNodeT*) : Bool
-    fun token_node_is_close = myhtml_token_node_is_close(token : MyhtmlTokenNodeT*) : Bool
+    struct HtmlToken
+      begin_ : UInt8*
+      end_ : UInt8*
+      in_begin : InModeT
+      attr_first : HtmlTokenAttrT
+      attr_last : HtmlTokenAttrT
+      base_element : Void*
+      tag_id : TagIdT
+      type_ : HtmlTokenTypeT
+    end
 
-    fun incoming_buffer_find_by_position = mycore_incoming_buffer_find_by_position(inc_buf : MyhtmlIncomingBufferT*, begin : LibC::SizeT) : MyhtmlIncomingBufferT*
-    fun incoming_buffer_offset = mycore_incoming_buffer_offset(inc_buf : MyhtmlIncomingBufferT*) : LibC::SizeT
-    fun incoming_buffer_data = mycore_incoming_buffer_data(inc_buf : MyhtmlIncomingBufferT*) : UInt8*
+    type HtmlTokenT = HtmlToken*
+    type HtmlTokenizerTokenF = HtmlTokenizerT, HtmlTokenT, Void* -> HtmlTokenT
 
-    fun attribute_key_raw_position = myhtml_attribute_key_raw_position(attr : MyhtmlTreeAttrT*) : MyhtmlPositionT
-    fun attribute_value_raw_position = myhtml_attribute_value_raw_position(attr : MyhtmlTreeAttrT*) : MyhtmlPositionT
+    fun html_tokenizer_create = lxb_html_tokenizer_create : HtmlTokenizerT
+    fun html_tokenizer_init = lxb_html_tokenizer_init(tkz : HtmlTokenizerT) : StatusT
+    fun html_tokenizer_opt_set = lxb_html_tokenizer_opt_set_noi(tkz : HtmlTokenizerT, opt : HtmlTokenizerOptT)
+    fun html_tokenizer_callback_token_done_set = lxb_html_tokenizer_callback_token_done_set_noi(tkx : HtmlTokenizerT, cb : HtmlTokenizerTokenF, ctx : Void*)
+    fun html_tokenizer_begin = lxb_html_tokenizer_begin(tkz : HtmlTokenizerT) : StatusT
+    fun html_tokenizer_chunk = lxb_html_tokenizer_chunk(tkz : HtmlTokenizerT, data : UInt8*, size : LibC::SizeT) : StatusT
+    fun html_tokenizer_end = lxb_html_tokenizer_end(tkz : HtmlTokenizerT) : StatusT
+    fun html_tokenizer_destroy = lxb_html_tokenizer_destroy(tkz : HtmlTokenizerT) : HtmlTokenizerT
+    fun tag_heap_create = lxb_tag_heap_create : TagHeapT
+    fun tag_heap_init = lxb_tag_heap_init(heap : TagHeapT, size : LibC::SizeT) : StatusT
+    fun tag_heap_destroy = lxb_tag_heap_destroy(heap : TagHeapT) : TagHeapT
+    fun tag_name_by_id = lxb_tag_name_by_id_noi(heap : TagHeapT, tag_id : TagIdT, len : LibC::SizeT*) : UInt8*
+    fun html_tokenizer_tag_heap_set = lxb_html_tokenizer_tag_heap_set_noi(tkz : HtmlTokenizerT, heap : TagHeapT)
+    fun html_tokenizer_tag_heap = lxb_html_tokenizer_tag_heap_noi(tkz : HtmlTokenizerT) : TagHeapT
+    fun html_token_tag_id_from_data = lxb_html_token_tag_id_from_data(heap : TagHeapT, token : HtmlTokenT) : TagIdT
+    fun html_tokenizer_status_set = lxb_html_tokenizer_status_set_noi(tkz : HtmlTokenizerT, status : StatusT)
+
+    struct HtmlParserChar
+      state : HtmlParserCharStateF
+      mraw : MRawT
+      replace_null : Bool
+      drop_null : Bool
+      is_attribute : Bool
+      tmp : LibC::SizeT
+      status : StatusT
+      is_eof : Bool
+      parse_errors : Void*
+      entity : Void*
+      entity_match : Void*
+      entity_begin : UInt8*
+      entity_str_len : LibC::SizeT
+    end
+
+    type HtmlParserCharT = HtmlParserChar*
+    type HtmlParserCharStateF = HtmlParserCharT, StrT, UInt8*, UInt8* -> UInt8*
+
+    fun html_parser_char_process = lxb_html_parser_char_process(pc : HtmlParserCharT, str : StrT, in_mode : InModeT, data : UInt8*, end : UInt8*) : StatusT
+    fun html_parser_char_ref_data = lxb_html_parser_char_ref_data(pc : HtmlParserCharT, str : StrT, data : UInt8*, end : UInt8*) : UInt8*
+    fun html_tokenizer_mraw = lxb_html_tokenizer_mraw_noi(tkz : HtmlTokenizerT) : MRawT
+    fun str_destroy = lexbor_str_destroy(str : StrT, mraw : MRawT, obj : Bool) : StrT
+
+    type HtmlTokenAttrTypeT = Int32
+    type InNodeT = Void*
+
+    struct HtmlTokenAttr
+      name_begin : UInt8*
+      name_end : UInt8*
+      value_begin : UInt8*
+      value_end : UInt8*
+      in_name : InNodeT
+      in_value : InNodeT
+      next : HtmlTokenAttrT
+      prev : HtmlTokenAttrT
+      type : HtmlTokenAttrTypeT
+    end
+
+    type HtmlTokenAttrT = HtmlTokenAttr*
+    fun html_token_attr_parse = lxb_html_token_attr_parse(attr : HtmlTokenAttrT, pc : HtmlParserCharT, name : StrT, value : StrT, mraw : MRawT) : StatusT
   end
 
   # const lxb_char_t *

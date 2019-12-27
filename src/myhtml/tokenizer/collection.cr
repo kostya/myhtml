@@ -1,18 +1,27 @@
 require "./token"
 
-# Helper tokenizer class which store tokens into array,
+# Helper tokenizer state class which store tokens into array,
 #   provide methods to iterator throuht them.
-class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
+class Myhtml::Tokenizer::Collection < Myhtml::Tokenizer::State
   getter tokens, last_id
-  getter raw_tree : Lib::MyhtmlTreeT* = Pointer(Lib::MyhtmlTreeT).null
+
+  @tokenizer : Tokenizer?
+
+  # Helper method
+  def self.parse(str)
+    col = self.new
+    parser = Myhtml::Tokenizer.new(col, true)
+    parser.parse(str)
+    {col, parser}
+  end
 
   def initialize
-    @tokens = [] of Myhtml::Lib::MyhtmlTokenNodeT*
+    @tokens = [] of Myhtml::Lib::HtmlToken # TODO: maybe better just store token, benchmark it
     @last_id = 0
   end
 
   def on_token(token)
-    @tokens << token.raw_token
+    @tokens << token.raw_token.value
   end
 
   def clear
@@ -23,17 +32,17 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
     @tokens.size
   end
 
-  def on_start
-    @raw_tree = self.sax.not_nil!.raw_tree
+  def on_begin(tok)
+    @tokenizer = tok
   end
 
-  def on_done
+  def on_end
     @last_id = size - 1
   end
 
   @[AlwaysInline]
-  protected def unsafe_token(i)
-    Myhtml::SAX::Token.new(self, @raw_tree, @tokens.to_unsafe[i])
+  def unsafe_token(i)
+    Myhtml::Tokenizer::Token.new(@tokenizer.not_nil!, (@tokens.to_unsafe + i).as(Myhtml::Lib::HtmlTokenT))
   end
 
   @[AlwaysInline]
@@ -56,7 +65,7 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
     TokenPos.new(self, unsafe_token(@last_id), @last_id)
   end
 
-  record TokenPos, collection : TokensCollection, token : Myhtml::SAX::Token, idx : Int32 do
+  record TokenPos, collection : Collection, token : Myhtml::Tokenizer::Token, idx : Int32 do
     forward_missing_to @token
 
     def next
@@ -85,7 +94,7 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
   end
 
   def inspect(io)
-    io << "Myhtml::SAX::TokensCollection(0x"
+    io << "Myhtml::Tokenizer::Collection(0x"
     io << object_id.to_s(16)
     io << ", tokens: "
     io << @tokens.size
@@ -94,10 +103,10 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
 
   module Filter
     def text_nodes
-      self.select { |t| t.tag_id == Myhtml::Lib::MyhtmlTags::MyHTML_TAG__TEXT }
+      self.select { |t| t.tag_id == Myhtml::Lib::TagIdT::LXB_TAG__TEXT }
     end
 
-    def nodes(tag_id : Lib::MyhtmlTags, opened = true)
+    def nodes(tag_id : Myhtml::Lib::TagIdT, opened = true)
       self.select { |t| t.tag_id == tag_id && opened != t.closed? }
     end
 
@@ -112,7 +121,7 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
 
   struct RightIterator
     include ::Iterator(TokenPos)
-    include Myhtml::SAX::TokensCollection::Filter
+    include Myhtml::Tokenizer::Collection::Filter
 
     @start_node : TokenPos
     @current_node : TokenPos? = nil
@@ -133,7 +142,7 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
 
   struct LeftIterator
     include ::Iterator(TokenPos)
-    include Myhtml::SAX::TokensCollection::Filter
+    include Myhtml::Tokenizer::Collection::Filter
 
     @start_node : TokenPos
     @current_node : TokenPos? = nil
@@ -159,11 +168,11 @@ class Myhtml::SAX::TokensCollection < Myhtml::SAX::Tokenizer
 
   class ScopeIterator
     include ::Iterator(TokenPos)
-    include Myhtml::SAX::TokensCollection::Filter
+    include Myhtml::Tokenizer::Collection::Filter
 
     @start_node : TokenPos
     getter current_node : TokenPos
-    @stop_tag_id : Myhtml::Lib::MyhtmlTags
+    @stop_tag_id : Myhtml::Lib::TagIdT
 
     def initialize(@start_node)
       @current_node = @start_node

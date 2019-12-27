@@ -19,7 +19,7 @@ N     = (ARGV[1]? || 10).to_i
 TEST  = (ARGV[2]? || 0).to_i
 COUNT = (ARGV[3]? == "1")
 
-class Doc < Myhtml::SAX::Tokenizer
+class Doc < Myhtml::Tokenizer::State
   getter counter
 
   def initialize(@counting = false)
@@ -27,7 +27,7 @@ class Doc < Myhtml::SAX::Tokenizer
   end
 
   def on_token(t)
-    @counter += 1 if @counting && t.tag_id == Myhtml::Lib::MyhtmlTags::MyHTML_TAG_A && !t.closed?
+    @counter += 1 if @counting && t.tag_id == Myhtml::Lib::TagIdT::LXB_TAG_A && !t.closed?
   end
 end
 
@@ -37,7 +37,7 @@ when 0
   t = Time.now
   s = 0
   N.times do
-    parser = Myhtml::Parser.new(str, tree_options: Myhtml::Lib::MyhtmlTreeParseFlags::MyHTML_TREE_PARSE_FLAGS_SKIP_WHITESPACE_TOKEN)
+    parser = Myhtml::Parser.new(str)
     count = COUNT ? parser.nodes(:a).size : 0
     s += count
     parser.free
@@ -50,7 +50,7 @@ when 1
   s = 0
   N.times do
     doc = Doc.new(COUNT)
-    parser = Myhtml::SAX.new(doc)
+    parser = Myhtml::Tokenizer.new(doc)
     parser.parse(str)
     s += doc.counter
     parser.free
@@ -62,14 +62,12 @@ when 2
   t = Time.now
   s = 0
   N.times do
-    doc = Myhtml::SAX::TokensCollection.new
-    parser = Myhtml::SAX.new(doc)
-    parser.parse(str)
+    doc, parser = Myhtml::Tokenizer::Collection.parse(str)
     count = if COUNT
               x = 0
-              doc.tokens.each do |t|
-                token = Myhtml::SAX::Token.new(doc, doc.raw_tree, t)
-                x += 1 if token.tag_id == Myhtml::Lib::MyhtmlTags::MyHTML_TAG_A && !token.closed?
+              0.upto(doc.tokens.size - 1) do |i|
+                token = doc.unsafe_token(i)
+                x += 1 if token.tag_id == Myhtml::Lib::TagIdT::LXB_TAG_A && !token.closed?
               end
               x
             else
@@ -85,9 +83,7 @@ when 3
   t = Time.now
   s = 0
   N.times do
-    doc = Myhtml::SAX::TokensCollection.new
-    parser = Myhtml::SAX.new(doc)
-    parser.parse(str)
+    doc, parser = Myhtml::Tokenizer::Collection.parse(str)
     count = if COUNT
               doc.root.right.nodes(:a).count { }
             else

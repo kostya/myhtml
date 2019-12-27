@@ -235,5 +235,35 @@ module Myhtml
       LXB_HTML_SERIALIZE_OPT_WITHOUT_TEXT_INDENT = 0x20
       LXB_HTML_SERIALIZE_OPT_FULL_DOCTYPE        = 0x40
     end
+
+    enum HtmlTokenizerOptT
+      LXB_HTML_TOKENIZER_OPT_UNDEF = 0x00
+
+      #
+      # Without copying input buffer.
+      # The user himself monitors the safety of buffers until the end of parsing.
+      #
+      LXB_HTML_TOKENIZER_OPT_WO_COPY = 0x01
+
+      #
+      # During parsing, incoming buffers will not be destroyed.
+      # By default, when the incoming buffer is no longer needed,
+      # it is destroyed.
+      #
+      LXB_HTML_TOKENIZER_OPT_WO_IN_DESTROY = 0x02
+    end
+
+    enum HtmlTokenTypeT
+      LXB_HTML_TOKEN_TYPE_OPEN         = 0x0000
+      LXB_HTML_TOKEN_TYPE_CLOSE        = 0x0001
+      LXB_HTML_TOKEN_TYPE_CLOSE_SELF   = 0x0002
+      LXB_HTML_TOKEN_TYPE_TEXT         = 0x0004
+      LXB_HTML_TOKEN_TYPE_DATA         = 0x0008
+      LXB_HTML_TOKEN_TYPE_RCDATA       = 0x0010
+      LXB_HTML_TOKEN_TYPE_CDATA        = 0x0020
+      LXB_HTML_TOKEN_TYPE_NULL         = 0x0040
+      LXB_HTML_TOKEN_TYPE_FORCE_QUIRKS = 0x0080
+      LXB_HTML_TOKEN_TYPE_DONE         = 0x0100
+    end
   end
 end
