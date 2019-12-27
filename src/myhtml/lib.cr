@@ -69,6 +69,35 @@ module Myhtml
     # Iterators
     fun simple_walk = lxb_dom_node_simple_walk(from : DomElementT, cb : Void*, ctx : Void*)
     # fun elements_by_tag_name = lxb_dom_elements_by_tag_name(root : DomElementT, col : CollectionT, qualified_name : UInt8*, len : LibC::SizeT) : StatusT
+
+    # FOR SAX Parsing
+    type MyhtmlTokenNodeT = Void*
+    type MyhtmlCallbackTokenF = MyhtmlTreeT*, MyhtmlTokenNodeT*, Void* -> Void*
+    type MyhtmlIncomingBufferT = Void*
+
+    struct MyhtmlPositionT
+      start : LibC::SizeT
+      length : LibC::SizeT
+    end
+
+    fun callback_before_token_done_set = myhtml_callback_before_token_done_set(tree : MyhtmlTreeT*, func : MyhtmlCallbackTokenF, ctx : Void*)
+    fun callback_after_token_done_set = myhtml_callback_after_token_done_set(tree : MyhtmlTreeT*, func : MyhtmlCallbackTokenF, ctx : Void*)
+    fun tree_incoming_buffer_first = myhtml_tree_incoming_buffer_first(tree : MyhtmlTreeT*) : MyhtmlIncomingBufferT*
+
+    fun token_node_raw_position = myhtml_token_node_raw_position(token : MyhtmlTokenNodeT*) : MyhtmlPositionT
+    fun token_node_element_position = myhtml_token_node_element_position(token : MyhtmlTokenNodeT*) : MyhtmlPositionT
+    fun token_node_attribute_first = myhtml_token_node_attribute_first(token : MyhtmlTokenNodeT*) : MyhtmlTreeAttrT*
+    fun token_node_tag_id = myhtml_token_node_tag_id(token : MyhtmlTokenNodeT*) : MyhtmlTagIdT
+    fun token_node_text = myhtml_token_node_text(node : MyhtmlTokenNodeT*, length : LibC::SizeT*) : UInt8*
+    fun token_node_is_close_self = myhtml_token_node_is_close_self(token : MyhtmlTokenNodeT*) : Bool
+    fun token_node_is_close = myhtml_token_node_is_close(token : MyhtmlTokenNodeT*) : Bool
+
+    fun incoming_buffer_find_by_position = mycore_incoming_buffer_find_by_position(inc_buf : MyhtmlIncomingBufferT*, begin : LibC::SizeT) : MyhtmlIncomingBufferT*
+    fun incoming_buffer_offset = mycore_incoming_buffer_offset(inc_buf : MyhtmlIncomingBufferT*) : LibC::SizeT
+    fun incoming_buffer_data = mycore_incoming_buffer_data(inc_buf : MyhtmlIncomingBufferT*) : UInt8*
+
+    fun attribute_key_raw_position = myhtml_attribute_key_raw_position(attr : MyhtmlTreeAttrT*) : MyhtmlPositionT
+    fun attribute_value_raw_position = myhtml_attribute_value_raw_position(attr : MyhtmlTreeAttrT*) : MyhtmlPositionT
   end
 
   # const lxb_char_t *
