@@ -49,11 +49,9 @@ when 1
   t = Time.now
   s = 0
   N.times do
-    doc = Doc.new(COUNT)
-    parser = Myhtml::Tokenizer.new(doc)
-    parser.parse(str)
+    doc = Doc.new(COUNT).parse(str)
     s += doc.counter
-    parser.free
+    doc.free
   end
   p s
   p Time.now - t
@@ -62,7 +60,7 @@ when 2
   t = Time.now
   s = 0
   N.times do
-    doc, parser = Myhtml::Tokenizer::Collection.parse(str)
+    doc = Myhtml::Tokenizer::Collection.new.parse(str)
     count = if COUNT
               x = 0
               0.upto(doc.tokens.size - 1) do |i|
@@ -74,7 +72,7 @@ when 2
               0
             end
     s += count
-    parser.free
+    doc.free
   end
   p s
   p Time.now - t
@@ -83,14 +81,14 @@ when 3
   t = Time.now
   s = 0
   N.times do
-    doc, parser = Myhtml::Tokenizer::Collection.parse(str)
+    doc = Myhtml::Tokenizer::Collection.new.parse(str)
     count = if COUNT
               doc.root.right.nodes(:a).count { }
             else
               0
             end
     s += count
-    parser.free
+    doc.free
   end
   p s
   p Time.now - t

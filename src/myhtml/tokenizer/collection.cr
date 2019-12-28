@@ -5,14 +5,10 @@ require "./token"
 class Myhtml::Tokenizer::Collection < Myhtml::Tokenizer::State
   getter tokens, last_id
 
-  @tokenizer : Tokenizer?
+  @tkz : Myhtml::Lib::HtmlTokenizerT = Pointer(Void).null.as(Myhtml::Lib::HtmlTokenizerT)
 
-  # Helper method
-  def self.parse(str)
-    col = self.new
-    parser = Myhtml::Tokenizer.new(col, true)
-    parser.parse(str)
-    {col, parser}
+  def parse(str)
+    super(str, true)
   end
 
   def initialize
@@ -33,7 +29,7 @@ class Myhtml::Tokenizer::Collection < Myhtml::Tokenizer::State
   end
 
   def on_begin(tok)
-    @tokenizer = tok
+    @tkz = tok.tkz
   end
 
   def on_end
@@ -42,7 +38,7 @@ class Myhtml::Tokenizer::Collection < Myhtml::Tokenizer::State
 
   @[AlwaysInline]
   def unsafe_token(i)
-    Myhtml::Tokenizer::Token.new(@tokenizer.not_nil!, (@tokens.to_unsafe + i).as(Myhtml::Lib::HtmlTokenT))
+    Myhtml::Tokenizer::Token.new(self, (@tokens.to_unsafe + i).as(Myhtml::Lib::HtmlTokenT))
   end
 
   @[AlwaysInline]

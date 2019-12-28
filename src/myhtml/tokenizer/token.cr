@@ -1,17 +1,17 @@
 # Html token without processing (raw attribute keys, html entities not converted)
 struct Myhtml::Tokenizer::Token
   # :nodoc:
-  getter tokenizer : Tokenizer
+  getter state : Myhtml::Tokenizer::State
 
   # :nodoc:
   getter raw_token : Myhtml::Lib::HtmlTokenT
 
-  def initialize(@tokenizer, @raw_token)
+  def initialize(@state, @raw_token)
   end
 
-  def self.from_raw(tokenizer, raw_token) : Token?
+  def self.from_raw(state, raw_token) : Token?
     unless raw_token.null
-      Token.new(tokenizer, raw_token)
+      Token.new(state, raw_token)
     end
   end
 
@@ -72,7 +72,7 @@ struct Myhtml::Tokenizer::Token
     pointerof(pc).clear # nullify all fields of pc
 
     pc.state = ->Myhtml::Lib.html_parser_char_ref_data
-    pc.mraw = Myhtml::Lib.html_tokenizer_mraw(@tokenizer.tkz)
+    pc.mraw = Myhtml::Lib.html_tokenizer_mraw(tkz)
     pc.replace_null = true
 
     res = Myhtml::Lib.html_parser_char_process(pointerof(pc).as(Myhtml::Lib::HtmlParserCharT),
@@ -146,7 +146,7 @@ struct Myhtml::Tokenizer::Token
     pc = uninitialized Myhtml::Lib::HtmlParserChar
     pointerof(pc).clear # nullify all fields of pc
 
-    mraw = Myhtml::Lib.html_tokenizer_mraw(@tokenizer.tkz)
+    mraw = Myhtml::Lib.html_tokenizer_mraw(tkz)
 
     res = Myhtml::Lib.html_token_attr_parse(attr, pointerof(pc).as(Myhtml::Lib::HtmlParserCharT),
       pointerof(name).as(Myhtml::Lib::StrT), pointerof(value).as(Myhtml::Lib::StrT), mraw)
@@ -268,5 +268,11 @@ struct Myhtml::Tokenizer::Token
     end
 
     io << ')'
+  end
+
+  # :nodoc:
+  @[AlwaysInline]
+  private def tkz
+    @state.tokenizer.not_nil!.tkz
   end
 end

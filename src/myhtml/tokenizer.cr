@@ -5,6 +5,19 @@ class Myhtml::Tokenizer
     def on_begin(tokenizer); end
 
     def on_end; end
+
+    getter tokenizer : Tokenizer?
+
+    def parse(str, skip_whitespace_tokens = false)
+      @tokenizer = tokenizer = Tokenizer.new(self, skip_whitespace_tokens)
+      tokenizer.parse(self, str)
+      self
+    end
+
+    def free
+      @tokenizer.try &.free
+      @tokenizer = nil
+    end
   end
 
   # Global heap
@@ -27,8 +40,8 @@ class Myhtml::Tokenizer
     end
 
     unless ctx.null?
-      tok = ctx.as(Tokenizer)
-      tok.state.on_token(Token.new(tok, token))
+      tok = ctx.as(Myhtml::Tokenizer::State)
+      tok.on_token(Token.new(tok, token))
     end
 
     token
@@ -55,16 +68,16 @@ class Myhtml::Tokenizer
     end
 
     unless ctx.null?
-      tok = ctx.as(Tokenizer)
-      tok.state.on_token(Token.new(tok, token))
+      tok = ctx.as(Myhtml::Tokenizer::State)
+      tok.on_token(Token.new(tok, token))
     end
 
     token
   end
 
-  getter state, tkz
+  getter tkz
 
-  def initialize(@state : Tokenizer::State, @skip_whitespace_tokens = false)
+  def initialize(state, @skip_whitespace_tokens = false)
     @finalized = false
     @tkz = Myhtml::Lib.html_tokenizer_create
     res = Myhtml::Lib.html_tokenizer_init(@tkz)
@@ -76,15 +89,15 @@ class Myhtml::Tokenizer
     Myhtml::Lib.html_tokenizer_tag_heap_set(@tkz, HEAP)
 
     Myhtml::Lib.html_tokenizer_opt_set(@tkz, Myhtml::Lib::HtmlTokenizerOptT::LXB_HTML_TOKENIZER_OPT_WO_COPY)
-    Myhtml::Lib.html_tokenizer_callback_token_done_set(@tkz, @skip_whitespace_tokens ? CALLBACK_WO_WHITESPACE_TOKENS : CALLBACK, self.as(Void*))
+    Myhtml::Lib.html_tokenizer_callback_token_done_set(@tkz, @skip_whitespace_tokens ? CALLBACK_WO_WHITESPACE_TOKENS : CALLBACK, state.as(Void*))
   end
 
-  def parse(str : String)
-    parse str.to_slice
+  def parse(state, str : String)
+    parse state, str.to_slice
   end
 
-  def parse(slice : Slice)
-    @state.on_begin(self)
+  def parse(state, slice : Slice)
+    state.on_begin(self)
 
     res = Myhtml::Lib.html_tokenizer_begin(@tkz)
     unless res == Myhtml::Lib::StatusT::LXB_STATUS_OK
@@ -101,7 +114,7 @@ class Myhtml::Tokenizer
       raise LibError.new("Failed to ending of parsing the html data: #{res}")
     end
 
-    @state.on_end
+    state.on_end
 
     self
   end

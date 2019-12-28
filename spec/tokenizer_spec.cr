@@ -43,7 +43,7 @@ class Inspecter < Myhtml::Tokenizer::State
   end
 end
 
-Tokenizer_CONT1 = <<-HTML
+CONT1 = <<-HTML
   <!doctype html>
   <html>
     <head>
@@ -91,86 +91,69 @@ INSPECT_TOKENS = ["Myhtml::Tokenizer::Token(!doctype, {\"html\" => \"\"})",
                   "Myhtml::Tokenizer::Token(#end-of-file)"]
 
 def parse_doc
-  d, _ = Myhtml::Tokenizer::Collection.parse(Tokenizer_CONT1)
-  d
+  Myhtml::Tokenizer::Collection.new.parse(CONT1)
+end
+
+def a_counter(str)
+  CounterA.new.parse(str)
 end
 
 describe Myhtml::Tokenizer do
   context "Basic usage" do
     it "count" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla>bla</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla>bla</a><br/></div>")
       counter.@c.should eq 1
     end
 
     it "find correct tag_name" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><A href=bla>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><A href=bla>bla &amp; ho</a><br/></div>")
       counter.@tag_name.should eq "a"
     end
 
     it "find correct text" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla>bla &amp; ho</a><br/></div>")
       counter.@text.should eq "bla &amp; ho"
     end
 
     it "find correct processed text" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla>bla &amp; ho</a><br/></div>")
       counter.@pc_text.should eq "bla & ho"
     end
 
     it "use global tags lxb_heap, but not a problem to call many times" do
       1000.times do
-        counter = CounterA.new
-        tok = Myhtml::Tokenizer.new(counter)
-        tok.parse("<div><span>test</span><a href=bla>bla</a><br/></div>")
+        counter = a_counter("<div><span>test</span><a href=bla>bla</a><br/></div>")
         counter.@c.should eq 1
-        tok.free
+        counter.free
       end
     end
 
     it "find correct raw attributes" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
       counter.@attrs.should eq({"href" => "bla", "class" => "ho&#81", "what" => "", "ho" => ""})
     end
 
     it "find correct processed attributes" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
       counter.@attrs2.should eq({"href" => "bla", "class" => "hoQ", "what" => "", "ho" => ""})
     end
 
     it "inspect" do
-      counter = CounterA.new
-      tok = Myhtml::Tokenizer.new(counter)
-      tok.parse("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
+      counter = a_counter("<div><span>test</span><a href=bla CLASS='ho&#81' what ho=>bla &amp; ho</a><br/></div>")
       counter.@insp.should eq "Myhtml::Tokenizer::Token(a, {\"href\" => \"bla\", \"class\" => \"ho&#81\", \"what\" => \"\", \"ho\" => \"\"})"
     end
   end
 
   context "inspecter" do
     it "work for Tokenizer" do
-      doc = Inspecter.new
-      parser = Myhtml::Tokenizer.new(doc)
-      parser.parse(Tokenizer_CONT1)
-      doc.res.size.should eq 39
+      counter = Inspecter.new.parse(CONT1)
+      counter.res.size.should eq 39
     end
 
     it "work for Tokenizer with whitespace filter" do
-      doc = Inspecter.new
-      parser = Myhtml::Tokenizer.new(doc, true)
-      parser.parse(Tokenizer_CONT1)
-      doc.res.size.should eq 24
-      doc.res.should eq INSPECT_TOKENS
+      counter = Inspecter.new.parse(CONT1, true)
+      counter.res.size.should eq 24
+      counter.res.should eq INSPECT_TOKENS
     end
   end
 
@@ -232,9 +215,7 @@ describe Myhtml::Tokenizer do
 
     context "integration specs" do
       it "iterators inside each other" do
-        doc = Myhtml::Tokenizer::Collection.new
-        parser = Myhtml::Tokenizer.new(doc, true)
-        parser.parse("<body> <br/> a <a href='/1'>b</a> c <br/> d <a href='/2'>e</a> f <br/> </body>")
+        doc = Myhtml::Tokenizer::Collection.new.parse("<body> <br/> a <a href='/1'>b</a> c <br/> d <a href='/2'>e</a> f <br/> </body>")
 
         links = [] of String
 
