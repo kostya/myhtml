@@ -18,29 +18,27 @@ class Myhtml::Tokenizer
       @tokenizer.try &.free
       @tokenizer = nil
     end
-  end
 
-  # Global heap
-  HEAP = begin
-    tags = Myhtml::Lib.tag_heap_create
-    Myhtml::Lib.tag_heap_init(tags, 128)
-    tags
+    def tokenizer!
+      @tokenizer.not_nil!
+    end
   end
 
   CALLBACK = ->(tkz : Myhtml::Lib::HtmlTokenizerT, token : Myhtml::Lib::HtmlTokenT, ctx : Void*) do
     tag_id = token.value.tag_id
 
-    if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
-      tag_id = Myhtml::Lib.html_token_tag_id_from_data(HEAP, token)
-      if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
-        return Pointer(Void).null.as(Myhtml::Lib::HtmlTokenT)
-      else
-        token.value.tag_id = tag_id
-      end
-    end
-
     unless ctx.null?
       tok = ctx.as(Myhtml::Tokenizer::State)
+
+      if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
+        tag_id = Myhtml::Lib.html_token_tag_id_from_data(tok.tokenizer!.heap, token)
+        if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
+          return Pointer(Void).null.as(Myhtml::Lib::HtmlTokenT)
+        else
+          token.value.tag_id = tag_id
+        end
+      end
+
       tok.on_token(Token.new(tok, token))
     end
 
@@ -58,35 +56,43 @@ class Myhtml::Tokenizer
       return token if whitespaced
     end
 
-    if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
-      tag_id = Myhtml::Lib.html_token_tag_id_from_data(HEAP, token)
-      if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
-        return Pointer(Void).null.as(Myhtml::Lib::HtmlTokenT)
-      else
-        token.value.tag_id = tag_id
-      end
-    end
-
     unless ctx.null?
       tok = ctx.as(Myhtml::Tokenizer::State)
+      if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
+        tag_id = Myhtml::Lib.html_token_tag_id_from_data(tok.tokenizer!.heap, token)
+        if tag_id == Myhtml::Lib::TagIdT::LXB_TAG__UNDEF
+          return Pointer(Void).null.as(Myhtml::Lib::HtmlTokenT)
+        else
+          token.value.tag_id = tag_id
+        end
+      end
+
       tok.on_token(Token.new(tok, token))
     end
 
     token
   end
 
-  getter tkz
+  getter tkz, heap
 
   def initialize(state, @skip_whitespace_tokens = false)
     @finalized = false
     @tkz = Myhtml::Lib.html_tokenizer_create
+    @heap = Myhtml::Lib.tag_heap_create
+
     res = Myhtml::Lib.html_tokenizer_init(@tkz)
     unless res == Myhtml::Lib::StatusT::LXB_STATUS_OK
       free
       raise LibError.new("Failed to html_tokenizer_init: #{res}")
     end
 
-    Myhtml::Lib.html_tokenizer_tag_heap_set(@tkz, HEAP)
+    res = Myhtml::Lib.tag_heap_init(@heap, 128)
+    unless res == Myhtml::Lib::StatusT::LXB_STATUS_OK
+      free
+      raise LibError.new("Failed to init heap: #{res}")
+    end
+
+    Myhtml::Lib.html_tokenizer_tag_heap_set(@tkz, @heap)
 
     Myhtml::Lib.html_tokenizer_opt_set(@tkz, Myhtml::Lib::HtmlTokenizerOptT::LXB_HTML_TOKENIZER_OPT_WO_COPY)
     Myhtml::Lib.html_tokenizer_callback_token_done_set(@tkz, @skip_whitespace_tokens ? CALLBACK_WO_WHITESPACE_TOKENS : CALLBACK, state.as(Void*))
@@ -127,6 +133,7 @@ class Myhtml::Tokenizer
     unless @finalized
       @finalized = true
       Myhtml::Lib.html_tokenizer_destroy(@tkz)
+      Myhtml::Lib.tag_heap_destroy(@heap)
     end
   end
 end

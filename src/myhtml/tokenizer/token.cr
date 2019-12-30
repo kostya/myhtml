@@ -41,7 +41,7 @@ struct Myhtml::Tokenizer::Token
 
   @[AlwaysInline]
   def tag_name_slice
-    buf = Myhtml::Lib.tag_name_by_id(Tokenizer::HEAP, tag_id, out len)
+    buf = Myhtml::Lib.tag_name_by_id(heap, tag_id, out len)
     Slice.new(buf, len)
   end
 
@@ -274,5 +274,11 @@ struct Myhtml::Tokenizer::Token
   @[AlwaysInline]
   private def tkz
     @state.tokenizer.not_nil!.tkz
+  end
+
+  # :nodoc:
+  @[AlwaysInline]
+  private def heap
+    @state.tokenizer.not_nil!.heap
   end
 end
