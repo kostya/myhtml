@@ -1,10 +1,10 @@
-REV := 393338d994c921705ff71dfbd1d98ceb31328f14
+REV := bab95671e77088b77a831682f3a1c435c557b8ed
 
 .PHONY: package
 package: ./modest-c/lib/libmodest_static.a
 
 ./modest-c:
-	git clone https://github.com/lexborisov/Modest.git ./modest-c
+	git clone https://github.com/kostya/Modest-1.git ./modest-c
 	cd modest-c && git reset --hard $(REV)
 
 ./modest-c/lib/libmodest_static.a: ./modest-c
