@@ -1,3 +1,6 @@
+## 1.5.9
+* Fix build on clang13
+
 ## 1.5.7
 * Add `Myhtml.decode_html_entities(bytes : Bytes)` method
 
